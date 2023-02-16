@@ -1,0 +1,203 @@
+; key-wordle : WS KeyEvent [List-of String] Nat -> WS
+; processes a keyboard event given a list of valid words and the required word length
+
+; backspace tests
+(check-expect
+ (key-wordle WS-START "\b" LITTLE-WORDS 3)
+ WS-START)
+
+(check-expect
+ (key-wordle WS-TYPE1 "\b" LITTLE-WORDS 3)
+ WS-START)
+
+(check-expect
+ (key-wordle WS-TYPE2 "\b" LITTLE-WORDS 3)
+ WS-TYPE1)
+
+(check-expect
+ (key-wordle WS-TYPE3 "\b" LITTLE-WORDS 3)
+ WS-TYPE2)
+
+(check-expect
+ (key-wordle WS-TYPE-BAD "\b" LITTLE-WORDS 3)
+ WS-TYPE2)
+
+(check-expect
+ (key-wordle WS-WORD1 "\b" LITTLE-WORDS 3)
+ WS-WORD1)
+
+; return tests
+(check-expect
+ (key-wordle WS-START "\r" LITTLE-WORDS 3)
+ WS-START)
+
+(check-expect
+ (key-wordle WS-TYPE1 "\r" LITTLE-WORDS 3)
+ WS-TYPE1)
+
+(check-expect
+ (key-wordle WS-TYPE2 "\r" LITTLE-WORDS 3)
+ WS-TYPE2)
+
+(check-expect
+ (key-wordle WS-TYPE3 "\r" LITTLE-WORDS 3)
+ WS-WORD1)
+
+(check-expect
+ (key-wordle WS-TYPE-BAD "\r" LITTLE-WORDS 3)
+ WS-TYPE-BAD)
+
+(check-expect
+ (key-wordle WS-WORD1 "\r" LITTLE-WORDS 3)
+ WS-WORD1)
+
+; other keys
+(check-expect
+ (key-wordle WS-START "C" LITTLE-WORDS 3)
+ WS-TYPE1)
+
+(check-expect
+ (key-wordle WS-START "c" LITTLE-WORDS 3)
+ WS-TYPE1)
+
+(check-expect
+ (key-wordle WS-START "1" LITTLE-WORDS 3)
+ WS-START)
+
+(check-expect
+ (key-wordle WS-TYPE1 "A" LITTLE-WORDS 3)
+ WS-TYPE2)
+
+(check-expect
+ (key-wordle WS-TYPE1 "A" LITTLE-WORDS 1)
+ WS-TYPE1)
+
+(check-expect
+ (key-wordle WS-TYPE1 "2" LITTLE-WORDS 3)
+ WS-TYPE1)
+
+(check-expect
+ (key-wordle WS-TYPE2 "T" LITTLE-WORDS 3)
+ WS-TYPE3)
+
+(check-expect
+ (key-wordle WS-TYPE2 "X" LITTLE-WORDS 3)
+ WS-TYPE-BAD)
+
+(check-expect
+ (key-wordle WS-TYPE3 "S" LITTLE-WORDS 3)
+ WS-TYPE3)
+
+(define (key-wordle ws ke valid-words word-length)
+  (cond [(key=? ke "\b") (handle-backspace ws)]
+        [(key=? ke "\r") (handle-return ws valid-words)]
+        [else (handle-add-key ws ke word-length)]))
+
+;; handle-backspace : WS -> WS
+;; Computes the WordleState when backspace is pressed
+
+(check-expect
+ (handle-backspace WS-START)
+ WS-START)
+
+(check-expect
+ (handle-backspace WS-TYPE1)
+ WS-START)
+
+(check-expect
+ (handle-backspace WS-TYPE2)
+ WS-TYPE1)
+
+(check-expect
+ (handle-backspace WS-TYPE3)
+ WS-TYPE2)
+
+(check-expect
+ (handle-backspace WS-TYPE-BAD)
+ WS-TYPE2)
+
+(check-expect
+ (handle-backspace WS-WORD1)
+ WS-WORD1)
+ 
+(define (handle-backspace ws)
+  (if (= (string-length (wordle-current ws)) 0)
+      ws
+      (make-wordle
+       (wordle-past ws)
+       (substring (wordle-current ws) 0 (sub1 (string-length (wordle-current ws)))))))
+
+;; handle-return : WS [List-of String] -> WS
+;; Computes the WordleState when return is pressed
+
+(check-expect
+ (handle-return WS-START LITTLE-WORDS)
+ WS-START)
+
+(check-expect
+ (handle-return WS-TYPE1 LITTLE-WORDS)
+ WS-TYPE1)
+
+(check-expect
+ (handle-return WS-TYPE2 LITTLE-WORDS)
+ WS-TYPE2)
+
+(check-expect
+ (handle-return WS-TYPE3 LITTLE-WORDS)
+ WS-WORD1)
+
+(check-expect
+ (handle-return WS-TYPE-BAD LITTLE-WORDS)
+ WS-TYPE-BAD)
+
+(check-expect
+ (handle-return WS-WORD1 LITTLE-WORDS)
+ WS-WORD1)
+
+(define (handle-return ws valid-words)
+  (if (string-in-list? (wordle-current ws) valid-words)
+      (make-wordle (append (wordle-past ws) (list (wordle-current ws))) "")
+      ws))
+
+;; handle-add-key : WS KeyEvent Nat -> WS
+;; Computes the WordleState when a key other than return or backspace is pressed
+
+(check-expect
+ (handle-add-key WS-START "C" 3)
+ WS-TYPE1)
+
+(check-expect
+ (handle-add-key WS-START "c" 3)
+ WS-TYPE1)
+
+(check-expect
+ (handle-add-key WS-START "1" 3)
+ WS-START)
+
+(check-expect
+ (handle-add-key WS-TYPE1 "A" 3)
+ WS-TYPE2)
+
+(check-expect
+ (handle-add-key WS-TYPE1 "A" 1)
+ WS-TYPE1)
+
+(check-expect
+ (handle-add-key WS-TYPE1 "2" 3)
+ WS-TYPE1)
+
+(check-expect
+ (handle-add-key WS-TYPE2 "T" 3)
+ WS-TYPE3)
+
+(check-expect
+ (handle-add-key WS-TYPE2 "X" 3)
+ WS-TYPE-BAD)
+(check-expect
+ (handle-add-key WS-TYPE3 "S" 3)
+ WS-TYPE3)
+
+(define (handle-add-key ws ke word-length)
+  (if (or (>= (string-length (wordle-current ws)) word-length) (not (string-alphabetic? ke)))
+      ws
+      (make-wordle (wordle-past ws) (string-append (wordle-current ws) (string-upcase ke)))))
